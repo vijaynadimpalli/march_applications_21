@@ -11,8 +11,7 @@ class PartnerSelectionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.quadruple = ['A', 'AAL', 'AAP', 'AAPL']
-        df = pd.read_csv('./data/data.csv', parse_dates=True, index_col='Date').dropna()[cls.quadruple]
-        df = df['2016']
+        df = pd.read_csv('data/sp500_2016_test.csv', parse_dates=True, index_col='Date').dropna()
         cls.ps = PartnerSelection(df)
 
         cls.u = cls.ps.returns.copy()
