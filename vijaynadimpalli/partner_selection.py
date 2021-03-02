@@ -5,8 +5,6 @@ import pandas as pd
 import seaborn as sns
 
 from statsmodels.distributions.empirical_distribution import ECDF
-from utils_multiprocess import run_traditional_correlation_calcs, run_extended_correlation_calcs, \
-    run_diagonal_measure_calcs, run_extremal_measure_calcs
 from ps_utils import get_sum_correlations, multivariate_rho, diagonal_measure, extremal_measure, get_co_variance_matrix
 
 
@@ -141,29 +139,6 @@ class PartnerSelection:
 
         return output_matrix
 
-    # Method 1
-    def traditional_multiprocess(self, n_targets=5) -> list:
-        """
-        Multiprocess implementation of self.traditional using mp_pandas_obj from mlfinlab.
-        This method implements the first procedure described in Section 3.1.1.
-        For all possible quadruples of a given stock, we calculate the sum of all pairwise correlations.
-        For every target stock the quadruple with the highest sum is returned.
-
-        :param n_targets: (int) : number of target stocks to select
-        :return output_matrix: list: List of all selected quadruples
-        """
-
-        output_matrix = []  # Stores the final set of quadruples.
-        # Iterating on the top 50 indices for each target stock.
-        for target in self.top_50_correlations.index[:n_targets]:
-            quadruples = self.all_quadruples[target]  # List of unique quadruples.
-            final_quadruple = run_traditional_correlation_calcs(self.correlation_matrix, quadruples)['quadruple']
-            print(final_quadruple)
-            # Appending the final quadruple for each target to the output matrix
-            output_matrix.append(final_quadruple)
-
-        return output_matrix
-
     # Method 2
     def extended(self, n_targets=5) -> list:
         """
@@ -200,35 +175,6 @@ class PartnerSelection:
 
         return output_matrix
 
-    # Method 2
-    def extended_multiprocess(self, n_targets=5) -> list:
-        """
-        Multiprocess implementation of self.extended using mp_pandas_obj from mlfinlab.
-        This method implements the second procedure described in Section 3.1.1.
-        It involves calculating the multivariate version of Spearman's correlation
-        for all possible quadruples of a given stock.
-        For every target stock the quadruple with the highest correlation is returned.
-
-        :param n_targets: (int) : number of target stocks to select
-        :return output_matrix: list: List of all selected quadruples
-        """
-
-        u = self.returns.copy()  # Generating ranked returns from quantiles using statsmodels ECDF
-        for column in self.returns.columns:
-            ecdf = ECDF(self.returns.loc[:, column])
-            u[column] = ecdf(self.returns.loc[:, column])
-
-        output_matrix = []  # Stores the final set of quadruples.
-        # Iterating on the top 50 indices for each target stock.
-        for target in self.top_50_correlations.index[:n_targets]:
-            quadruples = self.all_quadruples[target]  # List of unique quadruples.
-            final_quadruple = run_extended_correlation_calcs(u, quadruples)['quadruple']
-            print(final_quadruple)
-            # Appending the final quadruple for each target to the output matrix
-            output_matrix.append(final_quadruple)
-
-        return output_matrix
-
     # Method 3
     def geometric(self, n_targets=5) -> list:
         """
@@ -252,29 +198,6 @@ class PartnerSelection:
                 if measure < min_measure:
                     min_measure = measure
                     final_quadruple = quadruple
-            print(final_quadruple)
-            # Appending the final quadruple for each target to the output matrix
-            output_matrix.append(final_quadruple)
-
-        return output_matrix
-
-    # Method 3
-    def geometric_multiprocess(self, n_targets=5) -> list:
-        """
-        Multiprocess implementation of self.geometric using mp_pandas_obj from mlfinlab.
-        This method implements the third procedure described in Section 3.1.1.
-        It involves calculating the four dimensional diagonal measure for all possible quadruples of a given stock.
-        For every target stock the quadruple with the lowest diagonal measure is returned.
-
-        :param n_targets: (int) : number of target stocks to select
-        :return output_matrix: list: List of all selected quadruples
-        """
-
-        output_matrix = []  # Stores the final set of quadruples.
-        # Iterating on the top 50 indices for each target stock.
-        for target in self.top_50_correlations.index[:n_targets]:
-            quadruples = self.all_quadruples[target]  # List of unique quadruples.
-            final_quadruple = run_diagonal_measure_calcs(self.ranked_returns, quadruples)['quadruple']
             print(final_quadruple)
             # Appending the final quadruple for each target to the output matrix
             output_matrix.append(final_quadruple)
@@ -310,40 +233,6 @@ class PartnerSelection:
             output_matrix.append(final_quadruple)
 
         return output_matrix
-
-    # Method 4
-    def extremal_multiprocess(self, n_targets=5) -> list:
-        """
-        Multiprocess implementation of self.extremal using mp_pandas_obj from mlfinlab.
-        This method implements the fourth procedure described in Section 3.1.1.
-        It involves calculating a non-parametric test statistic based on Mangold (2015) to measure the
-        degree of deviation from independence. Main focus of this measure is the occurrence of joint extreme events.
-
-        :param n_targets: (int) : number of target stocks to select
-        :return output_matrix: list: List of all selected quadruples
-        """
-
-        co_variance_matrix = get_co_variance_matrix()
-        output_matrix = []  # Stores the final set of quadruples.
-        # Iterating on the top 50 indices for each target stock.
-        for target in self.top_50_correlations.index[:n_targets]:
-            quadruples = self.all_quadruples[target]  # List of unique quadruples.
-            final_quadruple = run_extremal_measure_calcs(self.ranked_returns, quadruples, co_variance_matrix)[
-                'quadruple']
-            print(final_quadruple)
-            # Appending the final quadruple for each target to the output matrix
-            output_matrix.append(final_quadruple)
-
-        return output_matrix
-
-    def plot_correlation(self):
-        """
-        Plot heatmap of correlations.
-        """
-
-        fig = plt.figure(figsize=(20, 20))
-        sns.heatmap(self.correlation_matrix)
-        plt.show()
 
     def plot_selected_pairs(self, quadruples: list):
         """

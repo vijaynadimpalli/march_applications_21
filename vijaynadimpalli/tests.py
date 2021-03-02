@@ -4,8 +4,6 @@ import unittest
 from statsmodels.distributions.empirical_distribution import ECDF
 from partner_selection import PartnerSelection
 from ps_utils import get_sum_correlations, multivariate_rho, diagonal_measure, extremal_measure, get_co_variance_matrix
-from utils_multiprocess import run_traditional_correlation_calcs, run_extended_correlation_calcs, \
-                                run_diagonal_measure_calcs, run_extremal_measure_calcs
 
 
 class PartnerSelectionTests(unittest.TestCase):
@@ -35,23 +33,6 @@ class PartnerSelectionTests(unittest.TestCase):
 
     def test_extremal_measure(self):
         self.assertEqual(round(extremal_measure(self.ps.ranked_returns[self.quadruple], self.co_variance_matrix), 4), 108.5128)
-
-    def test_run_traditional_correlation_calcs(self):
-        self.assertEqual(round(run_traditional_correlation_calcs(
-            self.ps.correlation_matrix, [self.quadruple, self.quadruple], num_threads=1)['result'], 4), 1.9678)
-
-    def test_run_extended_correlation_calcs(self):
-        self.assertEqual(round(run_extended_correlation_calcs(
-            self.u, [self.quadruple, self.quadruple], num_threads=1)['result'], 4), 0.3114)
-
-    def test_run_diagonal_measure_calcs(self):
-        self.assertEqual(round(run_diagonal_measure_calcs(
-            self.ps.ranked_returns, [self.quadruple, self.quadruple], num_threads=1)['result'], 4), 91.9374)
-
-    def test_run_extremal_measure_calcs(self):
-        self.assertEqual(round(run_extremal_measure_calcs(
-            self.ps.ranked_returns, [self.quadruple, self.quadruple], self.co_variance_matrix, num_threads=1)['result'], 4), 108.5128)
-
 
 if __name__ == '__main__':
     unittest.main()
