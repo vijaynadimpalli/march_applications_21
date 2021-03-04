@@ -111,7 +111,7 @@ class PartnerSelection:
         return quadruples
 
     @staticmethod
-    def _prepare_combinations_of_partners(stock_selection: list) -> pd.DataFrame:
+    def _prepare_combinations_of_partners(stock_selection: list) -> np.array:
         """Helper function to calculate all combinations for a target stock and it's potential partners
         :param: stock_selection (pd.DataFrame): the target stock has to be the first element of the array
         :return: the possible combinations for the quadruples.Shape (19600,4) or

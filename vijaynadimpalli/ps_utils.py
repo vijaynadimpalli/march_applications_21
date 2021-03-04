@@ -116,8 +116,7 @@ def diagonal_measure_vectorized(data_subset: pd.DataFrame, all_possible_combinat
     Reference for calculating the euclidean distance from a point to diagonal
     https://in.mathworks.com/matlabcentral/answers/76727-how-can-i-calculate-distance-between-a-point-and-a-line-in-4d-or-space-higer-than-3d
 
-    :param points: (pd.DataFrame) : ranked returns of 4 stock tickers
-    :return total_distance: (float) : total euclidean distance
+
     """
 
     quadruples_combinations_data = data_subset.values[:, all_possible_combinations]
