@@ -44,36 +44,6 @@ def get_sum_correlations_vectorized(data_subset: pd.DataFrame, all_possible_comb
     return final_quadruple, corr_sums[max_index]
 
 
-def multivariate_rho(u: pd.DataFrame) -> float:
-    """
-    Helper function for extended approach to partner selection. Calculates 3 proposed estimators for
-    high dimensional generalization for Spearman's rho. These implementations are present in
-    Schmid, F., Schmidt, R., 2007. Multivariate extensions of Spearman’s rho and related statis-tics.
-
-    :param u: (pd.DataFrame) : ranked returns of quadruple
-    :return: (float) : mean of the three estimators of multivariate rho
-    """
-
-    n, d = u.shape  # n : Number of samples, d : Number of stocks
-    h_d = (d + 1) / ((2 ** d) - d - 1)
-
-    # # Calculating the first estimator of multivariate rho
-    sum_1 = np.prod(1 - u, axis=1).sum()
-    rho_1 = h_d * (-1 + (((2 ** d) / n) * sum_1))
-
-    # # Calculating the second estimator of multivariate rho
-    sum_2 = np.prod(u, axis=1).sum()
-    rho_2 = h_d * (-1 + (((2 ** d) / n) * sum_2))
-
-    # Calculating the third estimator of multivariate rho
-    pairs = [x for x in itertools.combinations(range(u.shape[-1]), 2)]
-    sum_3 = np.sum([(1 - u.iloc[:, k]) * (1 - u.iloc[:, l]) for (k, l) in pairs])
-    dc2 = scipy.special.comb(d, 2, exact=True)
-    rho_3 = -3 + (12 / (n * dc2)) * sum_3
-    print(f"rho3 {rho_3}")
-
-    return (rho_1 + rho_2 + rho_3) / 3
-
 def multivariate_rho_vectorized(data_subset: pd.DataFrame, all_possible_combinations: np.array) -> tuple:
     """
     Helper function for extended approach to partner selection. Calculates 3 proposed estimators for
@@ -85,22 +55,25 @@ def multivariate_rho_vectorized(data_subset: pd.DataFrame, all_possible_combinat
     """
     quadruples_combinations_data = data_subset.values[:, all_possible_combinations]
 
-    n, _, d = quadruples_combinations_data.shape
-    hd = (d + 1) / (2 ** d - d - 1)
-    ecdf_df_product_1 = np.product(1 - quadruples_combinations_data, axis=-1)
-    ecdf_df_product_2 = np.product(quadruples_combinations_data, axis=-1)
-    est1 = hd * (-1 + (2 ** d / n) * ecdf_df_product_1.sum(axis=0))
-    est2 = hd * (-1 + (2 ** d / n) * ecdf_df_product_2.sum(axis=0))
+    n, _, d = quadruples_combinations_data.shape  # n : Number of samples, d : Number of stocks
+    h_d = (d + 1) / (2 ** d - d - 1)
 
-    ##TODO :: est1 and est2 implementations are correct, est3 implementation is wrong
+    # Calculating the first estimator of multivariate rho
+    sum_1 = np.product(1 - quadruples_combinations_data, axis=-1).sum(axis=0)
+    rho_1 = h_d * (-1 + (2 ** d / n) * sum_1)
 
-    # here we create the index as we will use it on specific dimensions
-    idx = np.array([(k, l) for l in range(0, d) for k in range(0, l)])
-    est3 = -3 + (12 / (n * scipy.special.comb(n, 2, exact=True))) * (
-            (1 - quadruples_combinations_data[:, :, idx[:, 0]]) * (
-            1 - quadruples_combinations_data[:, :, idx[:, 1]])).sum(axis=(0, 2))
-    print(f"est3 {est3}")
-    quadruples_scores = (est1 + est2 + est3) / 3
+    # Calculating the second estimator of multivariate rho
+    sum_2 = np.product(quadruples_combinations_data, axis=-1).sum(axis=0)
+    rho_2 = h_d * (-1 + (2 ** d / n) * sum_2)
+
+    # Calculating the third estimator of multivariate rho
+    pairs = np.array(list(itertools.combinations(range(d), 2)))
+    k, l = pairs[:, 0], pairs[:, 1]
+    sum_3 = ((1 - quadruples_combinations_data[:, :, k]) * (1 - quadruples_combinations_data[:, :, l])).sum(axis=(0, 2))
+    dc2 = scipy.special.comb(d, 2, exact=True)
+    rho_3 = -3 + (12 / (n * dc2)) * sum_3
+
+    quadruples_scores = (rho_1 + rho_2 + rho_3) / 3
     # The quadruple scores have the shape of (19600,1) now
     max_index = np.argmax(quadruples_scores)
 

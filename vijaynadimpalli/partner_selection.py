@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns
 
 from statsmodels.distributions.empirical_distribution import ECDF
-from ps_utils import  multivariate_rho,  extremal_measure, get_co_variance_matrix, \
+from ps_utils import  extremal_measure, get_co_variance_matrix, \
     get_sum_correlations_vectorized, multivariate_rho_vectorized, diagonal_measure_vectorized
 
 
@@ -162,42 +162,6 @@ class PartnerSelection:
         :return output_matrix: list: List of all selected quadruples
         """
 
-        u = self.returns.copy()  # Generating ranked returns from quantiles using statsmodels ECDF
-        for column in self.returns.columns:
-            ecdf = ECDF(self.returns.loc[:, column])
-            u[column] = ecdf(self.returns.loc[:, column])
-
-        output_matrix = []  # Stores the final set of quadruples.
-        # Iterating on the top 50 indices for each target stock.
-        for target in self.top_50_correlations.index[:n_targets]:
-            max_correlation = -np.inf  # Variable used to extract the desired maximum value
-            final_quadruple = None  # Stores the final desired quadruple
-
-            # Iterating on all unique quadruples generated for a target
-            for quadruple in self.all_quadruples[target]:
-                correlation = multivariate_rho(u[quadruple])
-                if correlation > max_correlation:
-                    max_correlation = correlation
-                    final_quadruple = quadruple
-
-            print(final_quadruple)
-            # Appending the final quadruple for each target to the output matrix
-            output_matrix.append(final_quadruple)
-
-        return output_matrix
-
-    # Method 2
-    def extended_vectorized(self, n_targets=5) -> list:
-        """
-        This method implements the second procedure described in Section 3.1.1.
-        It involves calculating the multivariate version of Spearman's correlation
-        for all possible quadruples of a given stock.
-        For every target stock the quadruple with the highest correlation is returned.
-
-        :param n_targets: (int) : number of target stocks to select
-        :return output_matrix: list: List of all selected quadruples
-        """
-
         ecdf_df = self.returns.apply(lambda x: ECDF(x)(x), axis=0)
 
         output_matrix = []  # Stores the final set of quadruples.
@@ -287,73 +251,4 @@ class PartnerSelection:
             sns.lineplot(ax=axs[i], data=data, legend=quadruple)
             axs[i].set_title(f'Final Quadruple of stocks with {quadruple[0]} as target')
             axs[i].set_ylabel('Cumulative Daily Returns')
-        plt.show()
-
-    def plot_all_target_measures(self, target: str, procedure: str):
-        """
-        Plots a scatterplot showing measures calculated for all possible quadruples of a given target stock.
-        :param target: (str) : target stock ticker
-        :param procedure: (str) : name of procedure for calculating measure
-        """
-
-        if procedure not in ('traditional', 'extended', 'geometric', 'extremal'):
-            raise Exception("Please enter a valid procedure name, i.e ('traditional', 'extended', 'geometric', "
-                            "'extremal') ")
-
-        measures_list = []
-        quadruples = self.all_quadruples[target]  # List of all quadruples
-        final_quadruple = None
-        final_measure = -np.inf
-
-        co_variance_matrix = None
-        u = None
-
-        # Preprocessing steps for some approaches
-        if procedure == 'extremal':
-            co_variance_matrix = get_co_variance_matrix()
-        if procedure == 'extended':
-            u = self.returns.copy()  # Generating ranked returns from quantiles using statsmodels ECDF
-            for column in self.returns.columns:
-                ecdf = ECDF(self.returns.loc[:, column])
-                u[column] = ecdf(self.returns.loc[:, column])
-        if procedure == 'geometric':
-            final_measure = np.inf
-
-        for quadruple in quadruples:
-            # Separate functionality for geometric approach because here the minimum measure is required.
-            if procedure == 'geometric':
-                measure = diagonal_measure_vectorized(self.ranked_returns[quadruple])
-                measures_list.append(measure)
-                if measure < final_measure:
-                    final_measure = measure
-                    final_quadruple = quadruple
-                continue
-
-            measure = 0
-            if procedure == 'traditional':
-                measure = get_sum_correlations_vectorized(self.correlation_matrix, quadruple)
-            elif procedure == 'extended':
-                measure = multivariate_rho(u[quadruple])
-            elif procedure == 'extremal':
-                measure = extremal_measure(self.ranked_returns[quadruple], co_variance_matrix)
-
-            measures_list.append(measure)  # Storing all calculated measures
-            if measure > final_measure:
-                final_measure = measure
-                final_quadruple = quadruple
-
-        print(final_quadruple)
-
-        # Code for plotting the final list of calculated measures
-        plt.figure(figsize=(20, 6))
-        data = pd.DataFrame(measures_list, columns=['measure'])
-        data['indices'] = range(len(measures_list))
-        data['hue'] = [0] * len(data)
-        if procedure == 'geometric':
-            data.loc[data['measure'].idxmin(), 'hue'] = 1
-        else:
-            data.loc[data['measure'].idxmax(), 'hue'] = 1
-        sns.scatterplot(x='indices', y='measure', data=data, alpha=0.5, hue='hue', size='hue',
-                        sizes={0: 5, 1: 40}, legend=False)
-        plt.title(f"Measures calculated from {procedure} approach for all quadruples of target {target}")
         plt.show()

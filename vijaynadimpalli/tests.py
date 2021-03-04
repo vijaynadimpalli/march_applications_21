@@ -4,8 +4,8 @@ import unittest
 
 from statsmodels.distributions.empirical_distribution import ECDF
 from partner_selection import PartnerSelection
-from ps_utils import  multivariate_rho,  extremal_measure, get_co_variance_matrix, \
-    get_sum_correlations_vectorized, diagonal_measure_vectorized
+from ps_utils import extremal_measure, get_co_variance_matrix, \
+    get_sum_correlations_vectorized, diagonal_measure_vectorized, multivariate_rho_vectorized
 
 
 class PartnerSelectionTests(unittest.TestCase):
@@ -36,7 +36,7 @@ class PartnerSelectionTests(unittest.TestCase):
             get_sum_correlations_vectorized(self.ps.correlation_matrix.loc[self.quadruple,self.quadruple], np.array([[0,1,2,3]]))[1], 4), 1.9678)
 
     def test_multivariate_rho(self):
-        self.assertEqual(round(multivariate_rho(self.u[self.quadruple]), 4), 0.3114)
+        self.assertEqual(round(multivariate_rho_vectorized(self.u[self.quadruple], np.array([[0,1,2,3]]))[1], 4), 0.3114)
 
     def test_diagonal_measure(self):
         self.assertEqual(round(diagonal_measure_vectorized(self.ps.ranked_returns[self.quadruple], np.array([[0,1,2,3]]))[1], 4), 91.9374)
