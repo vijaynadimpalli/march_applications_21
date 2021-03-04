@@ -14,20 +14,7 @@ def get_sector_data(quadruple, constituents):
         return None
 
 
-def get_sum_correlations(corr_matrix, quadruple: list) -> float:
-    """
-    Helper function for traditional approach to partner selection.
-    Calculates sum of pairwise correlations between all stocks in the quadruple.
-
-    :param corr_matrix: Correlation Matrix
-    :param quadruple: (list) : list of 4 stock tickers
-    :return: (float) : sum of correlations
-    """
-
-    return (corr_matrix.loc[quadruple, quadruple].sum().sum() - len(quadruple)) / 2
-
-
-def get_sum_correlations_vectorized(data_subset: pd.DataFrame, all_possible_combinations: np.array) -> list:
+def get_sum_correlations_vectorized(data_subset: pd.DataFrame, all_possible_combinations: np.array) -> tuple:
     """
     Helper function for traditional approach to partner selection.
     Calculates sum of pairwise correlations between all stocks in the quadruple.
@@ -36,6 +23,7 @@ def get_sum_correlations_vectorized(data_subset: pd.DataFrame, all_possible_comb
     :param all_possible_combinations: (np.array) :
     :return:
     """
+
     # Here the magic happens:
     # We use the combinations as an index
     corr_matrix_a = data_subset.values[:, all_possible_combinations]
@@ -53,7 +41,7 @@ def get_sum_correlations_vectorized(data_subset: pd.DataFrame, all_possible_comb
         corr_sums)
     final_quadruple = data_subset.columns[list(all_possible_combinations[max_index])].tolist()
 
-    return final_quadruple
+    return final_quadruple, corr_sums[max_index]
 
 
 def multivariate_rho(u: pd.DataFrame) -> float:
@@ -86,7 +74,7 @@ def multivariate_rho(u: pd.DataFrame) -> float:
 
     return (rho_1 + rho_2 + rho_3) / 3
 
-def multivariate_rho_vectorized(data_subset: pd.DataFrame, all_possible_combinations: np.array) -> list:
+def multivariate_rho_vectorized(data_subset: pd.DataFrame, all_possible_combinations: np.array) -> tuple:
     """
     Helper function for extended approach to partner selection. Calculates 3 proposed estimators for
     high dimensional generalization for Spearman's rho. These implementations are present in
@@ -118,46 +106,9 @@ def multivariate_rho_vectorized(data_subset: pd.DataFrame, all_possible_combinat
 
     final_quadruple = data_subset.columns[list(all_possible_combinations[max_index])].tolist()
 
-    return final_quadruple
+    return final_quadruple, quadruples_scores[max_index]
 
-
-
-
-
-
-
-def distance_calc(a, ba, x):
-    """
-    Helper function to calculate Euclidean distance between Point and diagonal used to calculate diagonal measure.
-    :param a: Origin (0,0,0,0)
-    :param ba: d-dimensional Diagonal
-    :param x: list of points on d-dimensions
-    :return:
-    """
-    pa = x - a  # Shape : (n,d), pa represents vector from point p to point a
-    t = np.dot(pa, ba) / np.dot(ba.T, ba)
-    return np.linalg.norm(pa - np.dot(t, ba.T), ord=2, axis=1)
-
-
-def diagonal_measure(points) -> float:
-    """
-    Helper function for geometric approach to partner selection. Calculates the sum of Euclidean distances
-    from the relative ranks to the (hyper-)diagonal in four dimensional space for a given target stock.
-
-    Reference for calculating the euclidean distance from a point to diagonal
-    https://in.mathworks.com/matlabcentral/answers/76727-how-can-i-calculate-distance-between-a-point-and-a-line-in-4d-or-space-higer-than-3d
-
-    :param points: (pd.DataFrame) : ranked returns of 4 stock tickers
-    :return total_distance: (float) : total euclidean distance
-    """
-    n, d = points.shape  # n : Number of samples, d : Number of stocks
-    a = np.zeros((1, d))  # Point a denotes origin which is present on hyper-diagonal
-    b = np.ones((1, d))  # Point b denotes point (1,1,1,1) on hyper-diagonal
-    ba = (b - a).T  # ba represents the hyper-diagonal
-    total_distance = distance_calc(a, ba, points).sum()
-    return total_distance
-
-def diagonal_measure_vectorized(data_subset: pd.DataFrame, all_possible_combinations: np.array) -> list:
+def diagonal_measure_vectorized(data_subset: pd.DataFrame, all_possible_combinations: np.array) -> tuple:
     """
     Helper function for geometric approach to partner selection. Calculates the sum of Euclidean distances
     from the relative ranks to the (hyper-)diagonal in four dimensional space for a given target stock.
@@ -180,7 +131,7 @@ def diagonal_measure_vectorized(data_subset: pd.DataFrame, all_possible_combinat
     distance_scores = np.sqrt(pn ** 2 - pp ** 2).sum(axis=1)
     min_index = np.argmin(distance_scores)
     final_quadruple = data_subset.columns[list(all_possible_combinations[min_index])].tolist()
-    return final_quadruple
+    return final_quadruple, distance_scores[min_index]
 
 
 def extremal_measure(u, co_variance_matrix):

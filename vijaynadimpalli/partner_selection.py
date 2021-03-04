@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns
 
 from statsmodels.distributions.empirical_distribution import ECDF
-from ps_utils import get_sum_correlations, multivariate_rho, diagonal_measure, extremal_measure, get_co_variance_matrix, \
+from ps_utils import  multivariate_rho,  extremal_measure, get_co_variance_matrix, \
     get_sum_correlations_vectorized, multivariate_rho_vectorized, diagonal_measure_vectorized
 
 
@@ -138,43 +138,14 @@ class PartnerSelection:
         output_matrix = []  # Stores the final set of quadruples.
         # Iterating on the top 50 indices for each target stock.
         for target in self.top_50_correlations.index[:n_targets]:
-            max_sum_correlations = 0  # Variable used to extract the desired maximum value
-            final_quadruple = None  # Stores the final desired quadruple
-
-            # Iterating on all unique quadruples generated for a target
-            for quadruple in self.all_quadruples[target]:
-                sum_correlations = get_sum_correlations(self.correlation_matrix, quadruple)
-                if sum_correlations > max_sum_correlations:
-                    max_sum_correlations = sum_correlations
-                    final_quadruple = quadruple
-
-            print(final_quadruple)
-            # Appending the final quadruple for each target to the output matrix
-            output_matrix.append(final_quadruple)
-
-        return output_matrix
-
-    # Method 1
-    def traditional_vectorized(self, n_targets=5) -> list:
-        """
-        This method implements the first procedure described in Section 3.1.1.
-        For all possible quadruples of a given stock, we calculate the sum of all pairwise correlations.
-        For every target stock the quadruple with the highest sum is returned.
-
-        :param n_targets: (int) : number of target stocks to select
-        :return output_matrix: list: List of all selected quadruples
-        """
-
-        output_matrix = []  # Stores the final set of quadruples.
-        # Iterating on the top 50 indices for each target stock.
-        for target in self.top_50_correlations.index[:n_targets]:
 
             stock_selection = [target] + self.top_50_correlations.loc[target].tolist()
             data_subset = self.correlation_matrix.loc[stock_selection, stock_selection]
             all_possible_combinations = self._prepare_combinations_of_partners(stock_selection)
 
-            final_quadruple = get_sum_correlations_vectorized(data_subset, all_possible_combinations)
+            final_quadruple = get_sum_correlations_vectorized(data_subset, all_possible_combinations)[0]
             print(final_quadruple)
+            # Appending the final quadruple for each target to the output matrix
             output_matrix.append(final_quadruple)
 
         return output_matrix
@@ -236,8 +207,7 @@ class PartnerSelection:
             data_subset = ecdf_df[stock_selection]
             all_possible_combinations = self._prepare_combinations_of_partners(stock_selection)
 
-
-            final_quadruple = multivariate_rho_vectorized(data_subset, all_possible_combinations)
+            final_quadruple = multivariate_rho_vectorized(data_subset, all_possible_combinations)[0]
             print(final_quadruple)
             # Appending the final quadruple for each target to the output matrix
             output_matrix.append(final_quadruple)
@@ -258,40 +228,11 @@ class PartnerSelection:
         output_matrix = []  # Stores the final set of quadruples.
         # Iterating on the top 50 indices for each target stock.
         for target in self.top_50_correlations.index[:n_targets]:
-            min_measure = np.inf  # Variable used to extract the desired minimum value
-            final_quadruple = None  # Stores the final desired quadruple
-
-            # Iterating on all unique quadruples generated for a target
-            for quadruple in self.all_quadruples[target]:
-                measure = diagonal_measure(self.ranked_returns[quadruple])
-                if measure < min_measure:
-                    min_measure = measure
-                    final_quadruple = quadruple
-            print(final_quadruple)
-            # Appending the final quadruple for each target to the output matrix
-            output_matrix.append(final_quadruple)
-
-        return output_matrix
-
-    # Method 3
-    def geometric_vectorized(self, n_targets=5) -> list:
-        """
-        This method implements the third procedure described in Section 3.1.1.
-        It involves calculating the four dimensional diagonal measure for all possible quadruples of a given stock.
-        For every target stock the quadruple with the lowest diagonal measure is returned.
-
-        :param n_targets: (int) : number of target stocks to select
-        :return output_matrix: list: List of all selected quadruples
-        """
-
-        output_matrix = []  # Stores the final set of quadruples.
-        # Iterating on the top 50 indices for each target stock.
-        for target in self.top_50_correlations.index[:n_targets]:
             stock_selection = [target] + self.top_50_correlations.loc[target].tolist()
             data_subset = self.ranked_returns[stock_selection]
             all_possible_combinations = self._prepare_combinations_of_partners(stock_selection)
 
-            final_quadruple = diagonal_measure_vectorized(data_subset, all_possible_combinations)
+            final_quadruple = diagonal_measure_vectorized(data_subset, all_possible_combinations)[0]
             print(final_quadruple)
             # Appending the final quadruple for each target to the output matrix
             output_matrix.append(final_quadruple)
@@ -381,7 +322,7 @@ class PartnerSelection:
         for quadruple in quadruples:
             # Separate functionality for geometric approach because here the minimum measure is required.
             if procedure == 'geometric':
-                measure = diagonal_measure(self.ranked_returns[quadruple])
+                measure = diagonal_measure_vectorized(self.ranked_returns[quadruple])
                 measures_list.append(measure)
                 if measure < final_measure:
                     final_measure = measure
@@ -390,7 +331,7 @@ class PartnerSelection:
 
             measure = 0
             if procedure == 'traditional':
-                measure = get_sum_correlations(self.correlation_matrix, quadruple)
+                measure = get_sum_correlations_vectorized(self.correlation_matrix, quadruple)
             elif procedure == 'extended':
                 measure = multivariate_rho(u[quadruple])
             elif procedure == 'extremal':
