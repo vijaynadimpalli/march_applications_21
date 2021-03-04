@@ -5,7 +5,8 @@ import pandas as pd
 import seaborn as sns
 
 from statsmodels.distributions.empirical_distribution import ECDF
-from ps_utils import get_sum_correlations, multivariate_rho, diagonal_measure, extremal_measure, get_co_variance_matrix
+from ps_utils import get_sum_correlations, multivariate_rho, diagonal_measure, extremal_measure, get_co_variance_matrix, \
+    get_sum_correlations_vectorized, multivariate_rho_vectorized, diagonal_measure_vectorized
 
 
 class PartnerSelection:
@@ -109,6 +110,20 @@ class PartnerSelection:
             quadruples.append([target] + list(triple))
         return quadruples
 
+    @staticmethod
+    def _prepare_combinations_of_partners(stock_selection: list) -> pd.DataFrame:
+        """Helper function to calculate all combinations for a target stock and it's potential partners
+        :param: stock_selection (pd.DataFrame): the target stock has to be the first element of the array
+        :return: the possible combinations for the quadruples.Shape (19600,4) or
+        if the target stock is left out (19600,3)
+        """
+        # We will convert the stock names into integers and then get a list of all combinations with a length of 3
+        num_of_stocks = len(stock_selection)
+        # We turn our partner stocks into numerical indices so we can use them directly for indexing
+        partner_stocks_idx = np.arange(1, num_of_stocks)  # basically exclude the target stock
+        partner_stocks_idx_combs = itertools.combinations(partner_stocks_idx, 3)
+        return np.array(list((0,) + comb for comb in partner_stocks_idx_combs))
+
     # Method 1
     def traditional(self, n_targets=5) -> list:
         """
@@ -135,6 +150,31 @@ class PartnerSelection:
 
             print(final_quadruple)
             # Appending the final quadruple for each target to the output matrix
+            output_matrix.append(final_quadruple)
+
+        return output_matrix
+
+    # Method 1
+    def traditional_vectorized(self, n_targets=5) -> list:
+        """
+        This method implements the first procedure described in Section 3.1.1.
+        For all possible quadruples of a given stock, we calculate the sum of all pairwise correlations.
+        For every target stock the quadruple with the highest sum is returned.
+
+        :param n_targets: (int) : number of target stocks to select
+        :return output_matrix: list: List of all selected quadruples
+        """
+
+        output_matrix = []  # Stores the final set of quadruples.
+        # Iterating on the top 50 indices for each target stock.
+        for target in self.top_50_correlations.index[:n_targets]:
+
+            stock_selection = [target] + self.top_50_correlations.loc[target].tolist()
+            data_subset = self.correlation_matrix.loc[stock_selection, stock_selection]
+            all_possible_combinations = self._prepare_combinations_of_partners(stock_selection)
+
+            final_quadruple = get_sum_correlations_vectorized(data_subset, all_possible_combinations)
+            print(final_quadruple)
             output_matrix.append(final_quadruple)
 
         return output_matrix
@@ -175,6 +215,35 @@ class PartnerSelection:
 
         return output_matrix
 
+    # Method 2
+    def extended_vectorized(self, n_targets=5) -> list:
+        """
+        This method implements the second procedure described in Section 3.1.1.
+        It involves calculating the multivariate version of Spearman's correlation
+        for all possible quadruples of a given stock.
+        For every target stock the quadruple with the highest correlation is returned.
+
+        :param n_targets: (int) : number of target stocks to select
+        :return output_matrix: list: List of all selected quadruples
+        """
+
+        ecdf_df = self.returns.apply(lambda x: ECDF(x)(x), axis=0)
+
+        output_matrix = []  # Stores the final set of quadruples.
+        # Iterating on the top 50 indices for each target stock.
+        for target in self.top_50_correlations.index[:n_targets]:
+            stock_selection = [target] + self.top_50_correlations.loc[target].tolist()
+            data_subset = ecdf_df[stock_selection]
+            all_possible_combinations = self._prepare_combinations_of_partners(stock_selection)
+
+
+            final_quadruple = multivariate_rho_vectorized(data_subset, all_possible_combinations)
+            print(final_quadruple)
+            # Appending the final quadruple for each target to the output matrix
+            output_matrix.append(final_quadruple)
+
+        return output_matrix
+
     # Method 3
     def geometric(self, n_targets=5) -> list:
         """
@@ -198,6 +267,31 @@ class PartnerSelection:
                 if measure < min_measure:
                     min_measure = measure
                     final_quadruple = quadruple
+            print(final_quadruple)
+            # Appending the final quadruple for each target to the output matrix
+            output_matrix.append(final_quadruple)
+
+        return output_matrix
+
+    # Method 3
+    def geometric_vectorized(self, n_targets=5) -> list:
+        """
+        This method implements the third procedure described in Section 3.1.1.
+        It involves calculating the four dimensional diagonal measure for all possible quadruples of a given stock.
+        For every target stock the quadruple with the lowest diagonal measure is returned.
+
+        :param n_targets: (int) : number of target stocks to select
+        :return output_matrix: list: List of all selected quadruples
+        """
+
+        output_matrix = []  # Stores the final set of quadruples.
+        # Iterating on the top 50 indices for each target stock.
+        for target in self.top_50_correlations.index[:n_targets]:
+            stock_selection = [target] + self.top_50_correlations.loc[target].tolist()
+            data_subset = self.ranked_returns[stock_selection]
+            all_possible_combinations = self._prepare_combinations_of_partners(stock_selection)
+
+            final_quadruple = diagonal_measure_vectorized(data_subset, all_possible_combinations)
             print(final_quadruple)
             # Appending the final quadruple for each target to the output matrix
             output_matrix.append(final_quadruple)
